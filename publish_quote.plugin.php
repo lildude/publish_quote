@@ -14,13 +14,15 @@ class PublishQuote extends Plugin
 	{
 		$admin_url = Site::get_url( 'admin' );
 		$link_name = Options::get( 'title' );
+		$user = User::identify();
+		$content_type = ( isset( $user->info->content_type ) ) ? "content_type={$user->info->content_type}&" : '';
 		$bookmarklet = "
-		<p>Bookmark this link to leave the page when quoting:
-		<a href=\"javascript:var w=window,d=document,gS='getSelection';location.href='{$admin_url}/publish?quote='+encodeURIComponent((''+(w[gS]?w[gS]():d[gS]?d[gS]():d.selection.createRange().text)).replace(/(^\s+|\s+$)/g,''))+'&url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(d.title);\">Quote on {$link_name}</a>
-		<br>
-		Bookmark this link to open a new tab or window when quoting:
-		<a href=\"javascript:var w=window,d=document,gS='getSelection';window.open('{$admin_url}/publish?quote='+encodeURIComponent((''+(w[gS]?w[gS]():d[gS]?d[gS]():d.selection.createRange().text)).replace(/(^\s+|\s+$)/g,''))+'&url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(d.title));void(0);\">Quote on {$link_name}</a>
-		</p>";
+			<p>Bookmark this link to leave the page when quoting:
+			<a href=\"javascript:var w=window,d=document,gS='getSelection';location.href='{$admin_url}/publish?{$content_type}quote='+encodeURIComponent((''+(w[gS]?w[gS]():d[gS]?d[gS]():d.selection.createRange().text)).replace(/(^\s+|\s+$)/g,''))+'&url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(d.title);\">Quote on {$link_name}</a>
+			<br>
+			Bookmark this link to open a new tab or window when quoting:
+			<a href=\"javascript:var w=window,d=document,gS='getSelection';window.open('{$admin_url}/publish?{$content_type}quote='+encodeURIComponent((''+(w[gS]?w[gS]():d[gS]?d[gS]():d.selection.createRange().text)).replace(/(^\s+|\s+$)/g,''))+'&url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(d.title));void(0);\">Quote on {$link_name}</a>
+			</p>";
 		return $bookmarklet;
 	}
 
@@ -38,10 +40,20 @@ class PublishQuote extends Plugin
 
 	/**
 	 * Respond to the user selecting an action on the plugin page
+	 * 
+	 * CNS: Customised this so you can select a default content type - heavily geared towards using the linkblog plugin
 	 */
 	public function action_plugin_ui_configure()
 	{
 		echo $this->get_bookmarklet();
+		
+		// Get currently available content types
+		$ctmp = array_keys( Post::list_active_post_types() );
+		array_shift( $ctmp );   // pop off the 0 => any option
+		$ct = array();
+		foreach ( $ctmp as $x ) {
+			$ct[$x] = $x;
+		}
 		$form = new FormUI( strtolower( __CLASS__ ) );
 		$form->append( 'static', 'instructions', '<strong><small>(Substitute {$quote}, {$title}, and {$url} in templates as desired)</small></strong>' );
 		$form->append( 'text', 'title__template', 'user:title__template', 'The title defaults to the title of the page being quoted:<br> ' );
@@ -55,6 +67,8 @@ class PublishQuote extends Plugin
 			$form->content__template->value = self::$default_content_template;
 		}
 		$form->append( 'text', 'quote__tags', 'user:quote__tags', 'Tags to attach to quote posts, comma separated: ' );
+		$form->append( 'select', 'content_type', 'user:content_type', 'The default content type to use:<br >', $ct );
+
 		$form->append( 'submit', 'save', _t( 'Save' ) );
 		$form->out();
 	}
